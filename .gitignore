@@ -1,3 +1,10 @@
 .env
 .idea
 __pycache__
+conf.json
+logs/*
+logs
+.venv
+**/__pycache__
+**/__pycache__/
+**/logs/

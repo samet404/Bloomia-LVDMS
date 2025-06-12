@@ -3,7 +3,6 @@ from pymilvus import MilvusClient
 from src.Logger import logger
 from marshmallow import Schema, fields
 
-
 class _RequestSchema(Schema):
     user_id = fields.String(required=True)
 

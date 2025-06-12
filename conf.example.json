@@ -1,0 +1,6 @@
+{
+  "port": 3434,
+  "aipool_ws_uri": "",
+  "milvus_uri": "",
+  "allowed_origins": "*"
+}
