@@ -2,5 +2,10 @@
   "port": 3434,
   "aipool_ws_uri": "",
   "milvus_uri": "",
-  "allowed_origins": "*"
+  "allowed_origins": "*",
+  "postgres_host": "localhost",
+  "postgres_port": 5430,
+  "postgres_user": "postgres",
+  "postgres_password": "postgres",
+  "postgres_db": "postgres"
 }

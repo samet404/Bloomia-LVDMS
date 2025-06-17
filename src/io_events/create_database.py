@@ -1,23 +1,21 @@
 from flask import Flask, request
+from flask_socketio import SocketIO
+from pydantic import BaseModel
 from pymilvus import MilvusClient
 from src.Logger import logger
-from marshmallow import Schema, fields
 
-class _RequestSchema(Schema):
-    user_id = fields.String(required=True)
 
 # https://milvus.io/docs/manage_databases.md
 # Each user can have unique database
 # This function creates a database for a user
-def create_database(flask: Flask,  milvus: MilvusClient):
-    @flask.route('/create-database', methods=['POST'])
-    def create_database():
+def create_database(socketio: SocketIO,  milvus: MilvusClient):
+    @socketio.on('/create-database')
+    def create_database(json):
         logger.info('Route: /create-database called')
-        schema = _RequestSchema()
+        input = json.loads(str(input))
+        input = _RequestSchema(**input)
 
         try:
-            data = schema.load(request.get_json())
-
             milvus.create_database(
                 db_name=data['user_id'] ,
             )
@@ -27,8 +25,3 @@ def create_database(flask: Flask,  milvus: MilvusClient):
         except Exception as e:
             logger.error(f'Route Error: /create-database - {str(e)}')
             return f'Error creating database: {str(e)}', 500
-
-    @flask.route('/hello', methods=['GET'])
-    def hello():
-        logger.info('Route: /hello called')
-        return 'Hello World!', 200

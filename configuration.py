@@ -5,6 +5,11 @@ class Configuaration(BaseModel):
     aipool_ws_uri: str
     milvus_uri: str
     allowed_origins: str
+    postgres_host: str
+    postgres_port: int
+    postgres_user: str
+    postgres_password: str
+    postgres_db: str
 
 # Replace 'file_path.json' with your actual JSON file path
 if not 'conf.json' in __file__:

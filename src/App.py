@@ -2,22 +2,20 @@
 # This file is the entry point of the application
 # ==============================================================================
 
-from flask import Flask, request
+from flask import Flask
 from pymilvus import MilvusClient
 
 from configuration import conf
 from src.Logger import logger
-from src.routes.create_database import create_database
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 from flask_cors import CORS
-from src.routes.ws.ws import ws
-
+from src.io_events.on_connect import on_connect as on_socketio_connect
 
 def create_app():
     app = Flask(__name__)
     socketio = SocketIO(cors_allowed_origins=conf.allowed_origins)
     app.config['SECRET_KEY'] = 'secret!'
-    CORS(app)  # Enable CORS for all routes
+    CORS(app)  # Enable CORS for all io_events
     socketio.init_app(app)
 
     logger.info('=================================================\n')
@@ -31,15 +29,7 @@ def create_app():
     print("\nCreating Flask app...")
     flask = create_app()
 
-    # Connect to Milvus
-    logger.info('\nConnecting to Milvus...')
-    milvus_client = MilvusClient(
-        uri=conf["milvus_uri"]
-    )
-
-    # Register flask routes
-    create_database(flask, milvus_client)
-    ws(socketio, milvus_client)
+    on_socketio_connect(socketio)
 
     return app, socketio
 
