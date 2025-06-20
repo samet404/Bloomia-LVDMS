@@ -1,6 +1,8 @@
+import os
+
 from pydantic import BaseModel
 
-class Configuaration(BaseModel):
+class Configuration(BaseModel):
     port: int = 3434
     aipool_ws_uri: str
     milvus_uri: str
@@ -10,12 +12,15 @@ class Configuaration(BaseModel):
     postgres_user: str
     postgres_password: str
     postgres_db: str
+    auth_server_uri: str
 
-# Replace 'file_path.json' with your actual JSON file path
-if not 'conf.json' in __file__:
-    raise ValueError("Missing 'conf.json' file. You can create new one by copying 'conf.example.json' to 'conf.json'")
+current_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(current_dir, 'conf.json')
 
-with open('conf.json', 'r') as file:
+with open(config_path, 'r') as file:
     json_file = file.read()
 
-conf = Configuaration.model_validate_json(json_file)
+if json_file is None:
+    raise ValueError("Missing 'conf.json' file. You can create new one by copying 'conf.example.json' to 'conf.json'")
+
+conf = Configuration.model_validate_json(json_file)

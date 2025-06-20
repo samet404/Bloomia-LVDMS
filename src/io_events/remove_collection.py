@@ -5,8 +5,7 @@ from pydantic import BaseModel
 from pymilvus import MilvusClient
 from src.helpers.socketio_helpers import send_io_client_error
 
-class RemoveCollectionData(BaseModel):
-    collection_name: str
+
 
 def remove_collection(socketio: SocketIO, session_id: str, milvus: MilvusClient):
     @socketio.on('remove_collection')

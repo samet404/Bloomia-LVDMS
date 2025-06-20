@@ -3,6 +3,7 @@ from typing import List, Literal
 
 @dataclass
 class ChatHistory:
+    id: str
     text: str
     role: Literal["user", "assistant", "system-error", "system-info", "system-warn"]
 

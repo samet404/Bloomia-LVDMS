@@ -9,3 +9,9 @@ pymilvus_model>=0.3.2
 tqdm>=4.67.1
 psycopg2-binary==2.9.10
 redis>=6.2.0
+Flask-SocketIO==5.5.1
+flask-cors==6.0.0
+protobuf==6.31.1
+python-socketio==5.13.0
+numpy==2.2.6
+requests==2.32.4
