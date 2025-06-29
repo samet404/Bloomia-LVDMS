@@ -1,18 +1,20 @@
 import json
 import logging
 from flask import request
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO, emit, join_room
 from pymilvus import MilvusClient
 from configuration import conf
-from src.ai_pool import ai_pool
 from src.auth import get_auth_session
 from src.io_events import send_chat_msg
 from src.io_events.create_collection import create_collection
+from src.io_events.on_disconnect import on_disconnect
 from src.io_events.remove_collection import remove_collection
 from src.io_events.req_collection_stats import req_collection_stats
 from src.helpers.socketio_helpers import send_io_client_error
 from src.io_events.req_collections import req_collections
 from src.stores.chat_history_store import ChatHistoryStore, ChatHistory
+from src.stores.opened_aipool_events_store import OpenedAIPoolEventsStore
+
 
 def on_connect(socketio: SocketIO):
     @socketio.on('connect')
@@ -20,6 +22,8 @@ def on_connect(socketio: SocketIO):
         session_id = request.sid
         if session_id is None:
             raise Exception('No socket.io session ID found')
+        join_room(session_id)
+        opened_aipool_events = OpenedAIPoolEventsStore(session_id)
 
         try:
             cloudflare_ip = request.headers.get('CF-Connecting-IP')
@@ -45,13 +49,12 @@ def on_connect(socketio: SocketIO):
             # INITIALIZE EVENTS
             # ==============================================================================
 
+            on_disconnect(socketio, session_id, auth_session_id, opened_aipool_events)
             req_collection_stats(socketio, session_id, milvus_client)
             remove_collection(socketio, session_id, milvus_client)
             create_collection(socketio, session_id, milvus_client)
             req_collections(socketio, session_id, milvus_client)
             send_chat_msg(socketio, session_id, milvus_client)
-
-
 
 
             # ==============================================================================
