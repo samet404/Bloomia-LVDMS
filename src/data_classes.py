@@ -9,8 +9,7 @@ class User:
 
 
 class CollectionStatsInput(BaseModel):
-    collection_name: str = 'John Doe'
-
+    collection_name: str
 
 class SendMessageInput(BaseModel):
     prompt: str

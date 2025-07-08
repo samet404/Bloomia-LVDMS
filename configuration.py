@@ -12,6 +12,7 @@ class Configuration(BaseModel):
     postgres_password: str
     postgres_db: str
     auth_server_uri: str
+    is_prod: bool
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(current_dir, 'conf.json')

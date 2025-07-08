@@ -1,6 +1,5 @@
 {
   "port": 3434,
-  "aipool_ws_uri": "",
   "milvus_uri": "",
   "allowed_origins": "*",
   "postgres_host": "localhost",
@@ -11,5 +10,6 @@
   "redis_host": "localhost",
   "redis_port": "4323",
   "redis_pass": "secretpass",
-  "auth_server_uri": "http://localhost:3000"
+  "auth_server_uri": "http://localhost:3000",
+  "is_prod": false
 }

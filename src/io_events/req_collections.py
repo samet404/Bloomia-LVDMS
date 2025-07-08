@@ -1,9 +1,9 @@
-from flask_socketio import SocketIO, emit
-from pymilvus import MilvusClient
-
+from flask import session
+from flask_socketio import SocketIO
 from src.helpers.notify_about_milvus import send_list_collections
 
-def req_collections(socketio: SocketIO, session_id: str, milvus: MilvusClient):
+def req_collections(socketio: SocketIO):
     @socketio.on('req_collections')
     def req_collections():
-        send_list_collections(socketio, session_id, milvus)
+        session_id = session["auth_session"]
+        send_list_collections(session_id)

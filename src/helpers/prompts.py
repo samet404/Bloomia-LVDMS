@@ -1,4 +1,6 @@
 from enum import Enum
+from textwrap import dedent
+
 
 class Persona(Enum):
     HAPPY = "happy"
@@ -11,23 +13,34 @@ class Persona(Enum):
     MASCULINE = "masculine"
     NEUTRAL = "neutral"
 
+
 def get_fix_grammar_prompt(text: str):
-    return f"""
-    Your task is to fix the grammar in the given text.
-    Please don't add any extra text. Don't change meaning of text. Don't add your comments to response. Only fix the grammer.
-    Your responses shouldn't start and end with quotes.
-    Text:
-    {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that fixes the grammar in the given text.
+        Your task is to fix the grammar in the given text.
+        Please don't add any extra text. Don't change meaning of text. Don't add your comments to response. Only fix the grammer.
+        Your responses shouldn't start and end with quotes.
+        Text:
+        {text}
+        """
+    ).strip()
+
 
 def get_fix_spelling_prompt(text: str):
-    return f"""
-    Your task is to fix the spelling in the given text.
-    Please don't add any extra text. Don't change meaning of text. Don't add your comments to response. Only fix the spelling.
-    Your responses shouldn't start and end with quotes.
-    Text:
-    {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that fixes the spelling in the given text.
+        Your task is to fix the spelling in the given text.
+        Please don't add any extra text. Don't change meaning of text. Don't add your comments to response. Only fix the spelling.
+        Your responses shouldn't start and end with quotes.
+        Text:
+        {text}
+        """
+    ).strip()
+
 
 def get_change_persona_prompt(text: str, persona: Persona | str):
     persona_definition = ""
@@ -48,49 +61,77 @@ def get_change_persona_prompt(text: str, persona: Persona | str):
     elif persona == Persona.CALM:
         persona_definition = "Transform the tone of this text to be serene, tranquil, and reassuring. Avoid any hint of urgency or excitement"
 
-    return f"""
-    Your task is to change persona in the given text. Don't change general meaning of text.
-    Your responses shouldn't start and end with quotes.
-    Persona directive: {persona_definition}
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that changes persona in the given text.
+        Your task is to change persona in the given text. Don't change general meaning of text.
+        Your responses shouldn't start and end with quotes.
+        Persona directive: {persona_definition}
+        Text: {text}
+        """
+    ).strip()
+
 
 def get_summarize_prompt(text: str):
-    return f"""
-    Your task is to summarize the given text.
-    Your responses shouldn't start and end with quotes.
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that summarizes the given text.
+        Your task is to summarize the given text.
+        Your responses shouldn't start and end with quotes.
+        Text: {text}
+        """
+    ).strip()
+
 
 def get_simplify_text_prompt(text: str):
-    return f"""
-    Your task is to simplify the given text.
-    Your responses shouldn't start and end with quotes.
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that simplifies the given text.
+        Your task is to simplify the given text.
+        Your responses shouldn't start and end with quotes.
+        Text: {text}
+        """
+    ).strip()
 
 
 def get_target_audiences_prompt(text: str, tag_count: int):
-    return f"""
-    Your task is to generate tags that represents possible target audience of provided text.
-    Tags should be separated with commas with no space. Your response shouldn't start and end with quotes. 
-    Example response with irrelevant tags: People interested in history,Students of computer science,Mathematicians,People interested in Alan Turing,People interested in algorithms,People interested in cryptography,Logicians,Philosophers,Biologists,People interested in theoretical biology 
-    Generate {tag_count} tags for the given text.
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that generates tags that represents possible target audience of provided text.
+        Your task is to generate tags that represents possible target audience of provided text.
+        Tags should be separated with commas with no space. Your response shouldn't start and end with quotes. 
+        Example response with irrelevant tags: People interested in history,Students of computer science,Mathematicians,People interested in Alan Turing,People interested in algorithms,People interested in cryptography,Logicians,Philosophers,Biologists,People interested in theoretical biology 
+        Generate {tag_count} tags for the given text.
+        Text: {text}
+        """
+    ).strip()
+
 
 def get_generate_questions_prompt(text: str, question_count: int):
-    return f"""
-    Your task is to generate questions that can be answered with provided text.
-    Questions should be separated with commas with no space. Your response shouldn't start and end with quotes. 
-    Generate {question_count} questions for the given text.
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that generates questions that can be answered with provided text.
+        Your task is to generate questions that can be answered with provided text.
+        Questions should be separated with commas with no space. Your response shouldn't start and end with quotes. 
+        Generate {question_count} questions for the given text.
+        Text: {text}
+        """
+    ).strip()
+
 
 def extract_keywords(text: str):
-    return f"""
-    Your task is to extract keywords from the given text.
-    Keywords should be separated with commas with no space. Your response shouldn't start and end with quotes.
-    Example response with irrelevant keywords: science,birds,history,mathematics,flowers
-    Text: {text}
-    """.strip()
+    return dedent(
+        f"""
+        SYSTEM INSTRUCTIONS:
+        You are helpful assistant that extracts keywords from the given text.
+        Your task is to extract keywords from the given text.
+        Keywords should be separated with commas with no space. Your response shouldn't start and end with quotes.
+        Example response with irrelevant keywords: science,birds,history,mathematics,flowers
+        Text: {text}
+        """
+    ).strip()

@@ -27,7 +27,6 @@ class AuthResponse(BaseModel):
     session: Session
     user: User
 
-
 def get_auth_session(better_auth_session_token: str):
     response = requests.get(
         f"{conf.auth_server_uri}/api/auth/get-session",

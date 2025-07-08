@@ -13,5 +13,7 @@ Flask-SocketIO==5.5.1
 flask-cors==6.0.0
 protobuf==6.31.1
 python-socketio==5.13.0
-numpy==2.2.6
+numpy==2.0.2
 requests==2.32.4
+gunicorn==23.0.0
+eventlet==0.40.1
