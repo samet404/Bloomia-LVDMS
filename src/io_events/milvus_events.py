@@ -45,7 +45,6 @@ def remove_collection(socketio: SocketIO):
 
            milvus_client = milvus_clients[session["auth_session"]]
 
-
            milvus_client.drop_collection(input.collection_name)
        except Exception as e:
             logging.error(f"Error removing collection: {str(e)}")
@@ -84,15 +83,3 @@ def send_list_collections(session_id: str, socketio: SocketIO):
     except Exception as e:
         logging.error(f"Error getting list of collections: {str(e)}")
         send_io_client_error(socketio, "Error getting list of collections.", session_id)
-
-def notify_about_files(session_id: str, socketio: SocketIO):
-    try:
-        main_postgresql_cursors[session_id].execute("""
-            SELECT * FROM File WHERE user_id = %%s ORDER BY created_at DESC 
-        """, (session_id,))
-
-        for row in main_postgresql_cursors[session_id]:
-            print(row)
-    except Exception as e:
-        logging.error(f"Error getting list of files: {str(e)}")
-        send_io_client_error(socketio, "Error getting list of files.", session_id)

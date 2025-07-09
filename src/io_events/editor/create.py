@@ -4,6 +4,8 @@ from datetime import datetime
 from flask import session, request
 from flask_socketio import SocketIO
 from pydantic import BaseModel
+from pymilvus import DataType
+
 from configuration import conf
 from src.auth import AuthResponse
 from src.db.milvus import milvus_clients
@@ -421,27 +423,36 @@ def create_rag_collection_group(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
-                INSERT INTO RagCollectionGroup (id, user_id, name, description, created_at, updated_at)
-                VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                """, (
-                    input.id,
-                    auth_info.user.id,
-                    input.name,
-                    input.description,
-                    datetime.now(),
-                    datetime.now(),
-                ))
+                schema = milvus_clients[session_id].create_schema(
+                    auto_id=False,
+                    enable_dynamic_field=True,
+                )
+
+                schema.add_field(
+                    name="id",
+                    dtype=DataType.VARCHAR,
+                    is_primary=True
+                )
+
+                schema.add_field(
+                    name="id",
+                    dtype=DataType.VARCHAR,
+                    is_primary=True
+                )
+
+                schema.add_field(
+                    field_name="vector",
+                    datatype=DataType.FLOAT_VECTOR,
+                    dim=1024,
+                    metric_type="IP",
+                )
 
                 milvus_clients[session_id].create_collection(
                     collection_name=input.name,
-                    dimension=1024,
-                    metric_type="IP",
-                    id_type='VARCHAR',
+                    schema=schema,
                 )
 
                 socketio.emit('create_rag_collection_group:success', input.transaction_id, to=session_id)
-
             except Exception as e:
                 socketio.emit('create_rag_collection_group:error', transaction_id, to=session_id)
                 logging.error(f"Error creating file: {str(e)}")
@@ -449,160 +460,3 @@ def create_rag_collection_group(socketio: SocketIO):
         except Exception as e:
             logging.error(f"UNAUTHORIZED create_rag_collection_group: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection_group", request.sid)
-
-
-class RagCollectionInput(BaseModel):
-    transaction_id: str
-    id: str
-    group_id: str
-    name: str
-    metadata: str
-    block_id: str
-
-def create_rag_collection(socketio: SocketIO):
-    def create_rag_collection_in_db(input: RagCollectionInput, session_id: str, auth_info: AuthResponse,
-                                    block_name: str):
-        main_postgresql_cursors[session_id].execute("""
-                        INSERT INTO RagCollection (%%s, id, user_id, group_id, name, metadata, created_at, updated_at)
-                        VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
-            block_name,
-            input.block_id,
-            input.id,
-            auth_info.user.id,
-            input.group_id,
-            input.name,
-            input.metadata,
-            datetime.now(),
-            datetime.now(),
-        ))
-
-    @socketio.on('create_rag_collection:heading_block')
-    def run(json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(json))
-                input = RagCollectionInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                create_rag_collection_in_db(input, session_id, auth_info, "heading_block_id")
-
-                socketio.emit('create_rag_collection:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection", request.sid)
-
-    @socketio.on('create_rag_collection:paragraph_block')
-    def run(json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(json))
-                input = RagCollectionInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                create_rag_collection_in_db(input, session_id, auth_info, "paragraph_block_id")
-
-                socketio.emit('create_rag_collection:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection", request.sid)
-
-    @socketio.on('create_rag_collection:code_block')
-    def run(json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(json))
-                input = RagCollectionInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                create_rag_collection_in_db(input, session_id, auth_info, "code_block_id")
-
-                socketio.emit('create_rag_collection:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection", request.sid)
-
-    @socketio.on('create_rag_collection:list_block')
-    def run(json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(json))
-                input = RagCollectionInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                create_rag_collection_in_db(input, session_id, auth_info, "list_block_id")
-
-                socketio.emit('create_rag_collection:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection", request.sid)
-
-    @socketio.on('create_rag_collection:todo_block')
-    def run(json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(json))
-                input = RagCollectionInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                create_rag_collection_in_db(input, session_id, auth_info, "todo_block_id")
-
-                socketio.emit('create_rag_collection:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection", request.sid)
