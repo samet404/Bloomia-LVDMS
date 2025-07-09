@@ -13,6 +13,7 @@ class Configuration(BaseModel):
     postgres_db: str
     auth_server_uri: str
     is_prod: bool
+    images_folder: str
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 config_path = os.path.join(current_dir, 'conf.json')

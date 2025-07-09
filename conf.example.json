@@ -11,5 +11,6 @@
   "redis_port": "4323",
   "redis_pass": "secretpass",
   "auth_server_uri": "http://localhost:3000",
-  "is_prod": false
+  "is_prod": false,
+  "images_folder": "/var/lib/bloomia/images"
 }

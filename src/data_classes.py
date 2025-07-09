@@ -8,8 +8,6 @@ class User:
     is_active: bool = True
 
 
-class CollectionStatsInput(BaseModel):
-    collection_name: str
 
 class SendMessageInput(BaseModel):
     prompt: str
@@ -19,11 +17,6 @@ class SendMessageInput(BaseModel):
     include_note_ids: list[str]
     include_notes: list[str]
 
-class RemoveCollectionInput(BaseModel):
-    collection_name: str
-
-class CreateCollectionInput(BaseModel):
-    collection_name: str
 
 class OnChatMsgMetadata(BaseModel):
     chat_id: str

@@ -5,6 +5,10 @@
 from pymilvus import MilvusClient
 from configuration import conf
 
+default_milvus_client = MilvusClient(
+    uri=conf.milvus_uri,
+)
+
 milvus_clients: dict[str, MilvusClient] = {}
 
 def create_milvus_client(user_id: str):
