@@ -8,7 +8,17 @@ main_postgresql: connection | None = None
 
 # This is a dictionary of cursors for each connected user
 # Each user has a unique cursor and cursors are closed when the user disconnects
+# str is sum of socket.io session_id and user's session_id
 main_postgresql_cursors: dict[str, cursor] = {}
+
+def get_main_postgresql_cursor(session_id: str, sio_session_id) -> cursor:
+    return main_postgresql_cursors[f"{session_id}_{sio_session_id}"]
+
+def set_main_postgresql_cursor(session_id: str, sio_session_id: str):
+    main_postgresql_cursors[f"{session_id}_{sio_session_id}"] = main_postgresql.cursor()
+
+def remove_main_postgresql_cursor(session_id: str, sio_session_id: str):
+    del main_postgresql_cursors[f"{session_id}_{sio_session_id}"]
 
 def init_postgresql():
     global main_postgresql

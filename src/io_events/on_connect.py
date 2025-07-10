@@ -3,7 +3,8 @@ from flask import request, session
 from flask_socketio import emit, join_room, SocketIO
 from configuration import conf
 from src.auth import get_auth_session
-from src.db.postgresql import  main_postgresql, main_postgresql_cursors
+from src.db.milvus import create_milvus_client
+from src.db.postgresql import set_main_postgresql_cursor
 from src.helpers.socketio_helpers import send_io_client_error
 
 def on_connect(socketio: SocketIO):
@@ -34,7 +35,8 @@ def on_connect(socketio: SocketIO):
             session["auth_session"] = auth_session.session.id
             session["user_id"] = auth_session.user.id
 
-            main_postgresql_cursors[session["auth_session"]] = main_postgresql.cursor()
+            set_main_postgresql_cursor(session["auth_session"], request.sid)
+            create_milvus_client(session["user_id"], request.sid)
 
             emit('connect-success')
             session["authorized"] = True

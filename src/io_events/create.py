@@ -8,8 +8,8 @@ from pymilvus import DataType
 
 from configuration import conf
 from src.auth import AuthResponse
-from src.db.milvus import milvus_clients
-from src.db.postgresql import main_postgresql_cursors
+from src.db.milvus import milvus_clients, get_milvus_client
+from src.db.postgresql import main_postgresql_cursors, get_main_postgresql_cursor
 from src.helpers.image import save_base64_image
 from src.helpers.socketio_helpers import send_io_client_error
 
@@ -26,6 +26,7 @@ def create_file(socketio: SocketIO):
     @socketio.on('create_file')
     def run(json):
         session_id = session["auth_session"]
+
         if session_id is None:
             raise Exception("AUTH SESSION NOT FOUND")
 
@@ -44,7 +45,7 @@ def create_file(socketio: SocketIO):
 
             file_id = uuid.uuid4()
 
-            main_postgresql_cursors[session_id].execute("""
+            get_main_postgresql_cursor(session_id, request.sid).execute("""
                 INSERT INTO File (id, user_id, name, description, total_block_count, added_to_bookmarks, ai_instructions, folder_id, created_at, updated_at)
                 VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
             """, (
@@ -97,7 +98,7 @@ def create_folder(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                             INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
                             VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -142,7 +143,7 @@ def create_heading(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session["auth_session"]].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                              INSERT INTO Heading (id, user_id, file_id, text, block_count, created_at, updated_at)
                                 VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
                             """, (
@@ -188,7 +189,7 @@ def create_paragraph(socketio: SocketIO):
                 input = CreateParagraphInput(**input)
                 input.model_dump()
 
-                main_postgresql_cursors[session["auth_session"]].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                          INSERT INTO Paragraph (id, user_id, file_id, text, block_count, created_at, updated_at)
                             VALUES (%%s, %%s,%%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -235,7 +236,7 @@ def create_folder(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                             INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
                             VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -282,7 +283,7 @@ def create_file_tag(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                             INSERT INTO FileTag (id, user_id, name, file_id, created_at, updated_at)
                             VALUES (%%s, %%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -327,7 +328,7 @@ def create_list_block(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                             INSERT INTO ListBlock (id, user_id, file_id, text, block_count, created_at, updated_at)
                             VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -377,7 +378,7 @@ def create_image_block(socketio: SocketIO):
 
                 save_base64_image(input.image, f"{conf.images_folder}/{input.id}")
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                             INSERT INTO ImageBlock (id, user_id, file_id, image_path, small_description, block_count, created_at, updated_at)
                             VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
                         """, (
@@ -412,9 +413,11 @@ def create_rag_collection_group(socketio: SocketIO):
     def run(json):
         try:
             session_id = session["auth_session"]
-            if session_id is None:
+            user_id = session["user_id"]
+
+            if session_id is None or user_id is None:
                 raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
+
             transaction_id = None
 
             try:
@@ -423,7 +426,7 @@ def create_rag_collection_group(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                schema = milvus_clients[session_id].create_schema(
+                schema = get_milvus_client(user_id, request.sid).create_schema(
                     auto_id=False,
                     enable_dynamic_field=True,
                 )
@@ -447,7 +450,7 @@ def create_rag_collection_group(socketio: SocketIO):
                     metric_type="IP",
                 )
 
-                milvus_clients[session_id].create_collection(
+                milvus_clients[user_id].create_collection(
                     collection_name=input.name,
                     schema=schema,
                 )
@@ -467,7 +470,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
         collection_name: str
 
     def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str):
-        main_postgresql_cursors[session_id].execute("""
+        get_main_postgresql_cursor(session_id, request.sid).execute("""
             INSERT INTO %%sRagCollection (name, block_id)
             VALUES (%%s, %%s)
         """, (

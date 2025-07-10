@@ -3,7 +3,7 @@ from flask import session, request
 from flask_socketio import SocketIO
 from pydantic import BaseModel
 from src.auth import AuthResponse
-from src.db.postgresql import main_postgresql_cursors
+from src.db.postgresql import main_postgresql_cursors, get_main_postgresql_cursor
 from src.helpers.socketio_helpers import send_io_client_error
 
 class HeadingBlockUpdateInput(BaseModel):
@@ -29,7 +29,7 @@ def update_heading_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE HeadingBlock SET text = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.content,
@@ -67,7 +67,7 @@ def update_paragraph_block(socketio: SocketIO):
                 input.model_dump()
 
                 transaction_id = input.transaction_id
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE ParagraphBlock SET text = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.content,
@@ -108,7 +108,7 @@ def update_todo_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE TodoBlock SET text = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.content,
@@ -149,7 +149,7 @@ def update_code_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE CodeBlock SET text = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.content,
@@ -190,7 +190,7 @@ def update_list_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE ListBlock SET text = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.content,
@@ -229,7 +229,7 @@ def swap_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                main_postgresql_cursors[session_id].execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute("""
                     UPDATE HeadingBlock SET block_count = %%s WHERE id = %%s AND user_id = %%s
                 """, (
                     input.block_id_1,
