@@ -244,9 +244,3 @@ def swap_block(socketio: SocketIO):
         except Exception as e:
             logging.error(f"UNAUTHORIZED swap_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED swap_block", request.sid)
-
-
-class AddCollectionToBlockInput(BaseModel):
-    transaction_id: str
-    block_id: str
-    collection_name: str

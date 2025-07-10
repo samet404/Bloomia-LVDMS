@@ -3,7 +3,7 @@ from flask import request, session
 from flask_socketio import emit, join_room, SocketIO
 from configuration import conf
 from src.auth import get_auth_session
-from src.db.milvus import create_milvus_client
+from src.db.milvus import create_milvus_client, default_milvus_client
 from src.db.postgresql import set_main_postgresql_cursor
 from src.helpers.socketio_helpers import send_io_client_error
 
@@ -11,6 +11,7 @@ def on_connect(socketio: SocketIO):
     @socketio.on('connect')
     def handle_connect():
         ip_address = request.headers.get('CF-Connecting-IP')
+
         if conf.is_prod:
             for i in range(10):
                 logging.ERROR("CLOUDFLARE CLIENT IP HEADER NOT FOUND")
@@ -36,6 +37,8 @@ def on_connect(socketio: SocketIO):
             session["user_id"] = auth_session.user.id
 
             set_main_postgresql_cursor(session["auth_session"], request.sid)
+
+            init_milvus_database(session["user_id"])
             create_milvus_client(session["user_id"], request.sid)
 
             emit('connect-success')
@@ -45,3 +48,20 @@ def on_connect(socketio: SocketIO):
             logging.error(f"User could not connect to server: {str(e)}")
             emit('connect-error', to=request.sid)
             send_io_client_error(socketio, f"Could not connect to server.", request.sid)
+
+
+def init_milvus_database(user_id: str):
+    existing_databases = default_milvus_client.list_database()
+
+    if user_id in existing_databases:
+        logging.info(f"Milvus database for user {user_id} already exists")
+        return
+
+    default_milvus_client.create_database(
+        db_name=user_id,
+        description=f"Database for user {user_id}",
+        properties={
+            "database.diskQuota.mb": 500,
+            "database.max.collections": 100,
+        }
+    )

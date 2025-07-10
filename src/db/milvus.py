@@ -5,10 +5,17 @@
 from pymilvus import MilvusClient
 from configuration import conf
 
-default_milvus_client = None
+default_milvus_client: MilvusClient | None = None
 
 # This is a dictionary of Milvus clients for each connected user
 milvus_clients: dict[str, MilvusClient] = {}
+
+def close_milvus_clients():
+    if default_milvus_client is not None:
+        default_milvus_client.close()
+
+    for client in milvus_clients.values():
+        client.close()
 
 def create_milvus_client(user_id: str, sio_session_id: str):
     milvus_clients[f"{user_id}_{sio_session_id}"] = MilvusClient(

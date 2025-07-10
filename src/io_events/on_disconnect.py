@@ -2,10 +2,8 @@ import logging
 
 from flask import request, session
 from flask_socketio import SocketIO
-
 from src.db.milvus import delete_milvus_client
-from src.db.postgresql import main_postgresql_cursors, remove_main_postgresql_cursor
-
+from src.db.postgresql import remove_main_postgresql_cursor
 
 def on_disconnect(socketio: SocketIO):
     @socketio.on('disconnect')

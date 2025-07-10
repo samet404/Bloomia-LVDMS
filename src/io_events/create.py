@@ -469,8 +469,8 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
         transaction_id: str
         collection_name: str
 
-    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str):
-        get_main_postgresql_cursor(session_id, request.sid).execute("""
+    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str, sio_sid: str):
+        get_main_postgresql_cursor(session_id, sio_sid).execute("""
             INSERT INTO %%sRagCollection (name, block_id)
             VALUES (%%s, %%s)
         """, (
@@ -496,7 +496,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id)
+                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id, request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -519,7 +519,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id)
+                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id, request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -542,7 +542,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "todo_block", "TodoBlock", input.collection_name, session_id)
+                add_to_block(transaction_id, "todo_block", "TodoBlock", input.collection_name, session_id, request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -566,7 +566,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "image_block", "ImageBlock", input.collection_name, session_id)
+                add_to_block(transaction_id, "image_block", "ImageBlock", input.collection_name, session_id, request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -589,7 +589,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "list_block", "ListBlock", input.collection_name, session_id)
+                add_to_block(transaction_id, "list_block", "ListBlock", input.collection_name, session_id, request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)

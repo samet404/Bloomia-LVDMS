@@ -2,20 +2,17 @@
 # This file is the entry point of the application
 # ==============================================================================
 
-from flask import Flask
-from pymilvus import MilvusClient
-from configuration import conf
-from src.Logger import logger
-from flask_socketio import SocketIO
-from flask_cors import CORS
-from src.db.postgresql import close_main_postgresql, init_postgresql
-from src.io_events.create_collection import create_collection
-from src.io_events.on_connect import on_connect as on_socketio_connect
 import atexit
+from flask import Flask
+from src.Logger import logger
+from flask_cors import CORS
+from src.db.milvus import init_milvus_client
+from src.db.postgresql import close_main_postgresql, init_postgresql
+from src.io_events.create import *
+from src.io_events.on_connect import *
 from src.io_events.on_disconnect import on_disconnect
-from src.io_events.remove_collection import remove_collection
-from src.io_events.req_collection_stats import req_collection_stats
-from src.io_events.req_collections import req_collections
+from src.io_events.remove import *
+from src.io_events.update import *
 
 def create_app():
     logger.info('Creating flask app...')
@@ -38,9 +35,7 @@ logger.info('=================================================\n')
 logger.info('Checking is milvus is running...')
 try:
     logger.info('\nConnecting to Main Milvus...')
-    main_milvus_client = MilvusClient(
-        uri=conf.milvus_uri,
-    )
+    init_milvus_client()
     logger.info('Looks like Milvus is running...')
 
     init_postgresql()
@@ -48,12 +43,33 @@ except Exception as e:
     logger.error(f"Error connecting to Main Milvus: {str(e)}")
     raise Exception(f"Error connecting to Main Milvus: {str(e)}")
 
-on_socketio_connect(socketio)
+on_connect(socketio)
 on_disconnect(socketio)
-req_collection_stats(socketio)
-remove_collection(socketio)
-create_collection(socketio)
-req_collections(socketio)
+create_file(socketio)
+create_folder(socketio)
+create_heading(socketio)
+create_paragraph(socketio)
+create_folder(socketio)
+create_file_tag(socketio)
+create_list_block(socketio)
+create_list_block(socketio)
+create_rag_collection_group(socketio)
+add_rag_collection_to_blocks(socketio)
+
+update_heading_block(socketio)
+update_paragraph_block(socketio)
+update_todo_block(socketio)
+update_code_block(socketio)
+update_list_block(socketio)
+swap_block(socketio)
+
+remove_heading_block(socketio)
+remove_paragraph_block(socketio),
+remove_todo_block(socketio)
+remove_code_block(socketio)
+remove_list_block(socketio)
+remove_image_block(socketio)
+remove_rag_collection_from_blocks(socketio)
 
 logger.info('Starting Flask server at http://localhost:' + str(conf.port))
 logger.info('Server started successfully.')
@@ -63,13 +79,12 @@ socketio.run(app=app,
              port=conf.port,
              debug=False)  # Set to False in production
 
-
 def cleanup():
     # Your cleanup code here
     logger.info('Exiting...')
     logger.info('Performing cleanup...')
     close_main_postgresql()
-    logger.info('Cleanup complete.')
 
+    logger.info('Cleanup complete.')
 
 atexit.register(cleanup)

@@ -1,20 +1,16 @@
 import logging
 import os.path
-
 from flask import session, request
 from flask_socketio import SocketIO
 from pydantic import BaseModel
-
 from src.auth import AuthResponse
 from src.db.milvus import get_milvus_client
 from src.db.postgresql import get_main_postgresql_cursor
 from src.helpers.socketio_helpers import send_io_client_error
 
-
 class RemoveHeadingBlockInput(BaseModel):
     transaction_id: str
     id: str
-
 
 def remove_heading_block(socketio: SocketIO):
     @socketio.on('remove_heading_block')
