@@ -460,3 +460,136 @@ def create_rag_collection_group(socketio: SocketIO):
         except Exception as e:
             logging.error(f"UNAUTHORIZED create_rag_collection_group: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection_group", request.sid)
+
+def add_rag_collection_to_blocks(socketio: SocketIO):
+    class AddRagCollectionToBlockInput(BaseModel):
+        transaction_id: str
+        collection_name: str
+
+    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str):
+        main_postgresql_cursors[session_id].execute("""
+            INSERT INTO %%sRagCollection (name, block_id)
+            VALUES (%%s, %%s)
+        """, (
+            block_table,
+            collection_name,
+            block,
+        ))
+
+        socketio.emit(f'add_rag_collection_{block}:success', transaction_id, to=session_id)
+
+    @socketio.on('add_rag_collection_heading_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = AddRagCollectionToBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error adding rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED add_rag_collection_heading_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_heading_block", request.sid)
+
+    @socketio.on('add_rag_collection_paragraph_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = AddRagCollectionToBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error adding rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED add_rag_collection_paragraph_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_paragraph_block", request.sid)
+
+    @socketio.on('add_rag_collection_todo_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = AddRagCollectionToBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                add_to_block(transaction_id, "todo_block", "TodoBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error adding rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED add_rag_collection_todo_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_todo_block", request.sid)
+
+
+    @socketio.on('add_rag_collection_image_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = AddRagCollectionToBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                add_to_block(transaction_id, "image_block", "ImageBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error adding rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED add_rag_collection_image_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_image_block", request.sid)
+
+    @socketio.on('add_rag_collection_list_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = AddRagCollectionToBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                add_to_block(transaction_id, "list_block", "ListBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error adding rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED add_rag_collection_list_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_list_block", request.sid)

@@ -5,6 +5,7 @@ from flask import session, request
 from flask_socketio import SocketIO
 from pydantic import BaseModel
 from src.auth import AuthResponse
+from src.db.milvus import milvus_clients
 from src.db.postgresql import main_postgresql_cursors
 from src.helpers.socketio_helpers import send_io_client_error
 
@@ -241,3 +242,46 @@ def remove_image_block(socketio: SocketIO):
         except Exception as e:
             logging.error(f"UNAUTHORIZED remove_image_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED remove_image_block", request.sid)
+
+
+
+def remove_rag_collection_from_blocks(socketio: SocketIO):
+    class RemoveRagCollectionFromBlockInput(BaseModel):
+        transaction_id: str
+        block_id: str
+        collection_name: str
+
+    def remove_from_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str):
+        main_postgresql_cursors[session_id].execute("""
+            DELETE FROM %%sRagCollection WHERE name = %%s AND block_id = %%s
+        """, (
+            block_table,
+            collection_name,
+            block,
+        ))
+
+
+        socketio.emit(f'remove_rag_collection_{block}:success', transaction_id, to=session_id)
+
+    @socketio.on('remove_rag_collection_heading_block')
+    def run(json):
+        try:
+            session_id = session["auth_session"]
+            if session_id is None:
+                raise Exception("AUTH SESSION NOT FOUND")
+            transaction_id = None
+
+            try:
+                input = json.loads(str(json))
+                input = RemoveRagCollectionFromBlockInput(**input)
+                input.model_dump()
+
+                transaction_id = input.transaction_id
+
+                remove_from_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id)
+            except Exception as e:
+                logging.error(f"Error removeing rag collection to block: {str(e)}")
+                send_io_client_error(socketio, f"Error removeing rag collection to block: {str(e)}", transaction_id)
+        except Exception as e:
+            logging.error(f"UNAUTHORIZED remove_rag_collection_heading_block: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED remove_rag_collection_heading_block", request.sid)

@@ -32,6 +32,7 @@ def on_connect(socketio: SocketIO):
 
             session["auth_info"] = auth_session
             session["auth_session"] = auth_session.session.id
+            session["user_id"] = auth_session.user.id
 
             main_postgresql_cursors[session["auth_session"]] = main_postgresql.cursor()
 
@@ -40,4 +41,5 @@ def on_connect(socketio: SocketIO):
             join_room(session["auth_session"])
         except Exception as e:
             logging.error(f"User could not connect to server: {str(e)}")
+            emit('connect-error', to=request.sid)
             send_io_client_error(socketio, f"Could not connect to server.", request.sid)

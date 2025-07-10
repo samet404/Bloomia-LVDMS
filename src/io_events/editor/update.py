@@ -250,20 +250,3 @@ class AddCollectionToBlockInput(BaseModel):
     transaction_id: str
     block_id: str
     collection_name: str
-
-def add_collection_to_block(socketio: SocketIO):
-    @socketio.on('add_collection_to_block')
-    def run (json):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-
-            try:
-
-            except Exception as e:
-
-
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED add_collection_to_block: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED add_collection_to_block", request.sid)
