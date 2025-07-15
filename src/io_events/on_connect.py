@@ -5,7 +5,7 @@ from configuration import conf
 from src.auth import get_auth_session
 from src.db.milvus import create_milvus_client, default_milvus_client
 from src.db.postgresql import set_main_postgresql_cursor
-from src.helpers.socketio_helpers import send_io_client_error
+from src.helpers import send_io_client_error
 
 def on_connect(socketio: SocketIO):
     @socketio.on('connect')

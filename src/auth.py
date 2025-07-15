@@ -35,7 +35,6 @@ def get_auth_session(better_auth_session_token: str):
         }
     )
 
-
     jsonRes = json.loads(response.text)
 
     if jsonRes is None:

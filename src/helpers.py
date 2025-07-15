@@ -1,5 +1,16 @@
+# ====== Helper functions for tasks related to server logic itself rather than utility
+
+import base64
 from enum import Enum
+from io import BytesIO
 from textwrap import dedent
+from PIL import Image
+from flask_socketio import SocketIO
+from psycopg2 import sql
+from psycopg2.extensions import cursor
+
+def send_io_client_error(socketio: SocketIO, error: str, to: str):
+    socketio.emit('error', error, to=to)
 
 
 class Persona(Enum):
@@ -135,3 +146,53 @@ def extract_keywords(text: str):
         Text: {text}
         """
     ).strip()
+
+
+def image_to_base64(image_path):
+    """
+    Convert an image file to base64 string
+    """
+    with Image.open(image_path) as image:
+        # Convert image to bytes
+        buffered = BytesIO()
+        image.save(buffered, format=image.format)
+        # Encode to base64
+        img_str = base64.b64encode(buffered.getvalue())
+        return img_str.decode('utf-8')
+
+
+def save_base64_image(base64_string, output_path):
+    """
+    Convert a base64 string back to an image file
+    """
+    # Decode base64 string
+    img_data = base64.b64decode(base64_string)
+    # Create image from bytes
+    img = Image.open(BytesIO(img_data))
+    # Save image
+    img.save(output_path + f".{img.format.lower()}")
+
+
+def is_user_postgresql_quota_is_full(user_id: str, cursor: cursor):
+    cursor.execute(sql.SQL("SELECT max_main_disk_size, main_disk_usage FROM user_quota WHERE user_id = %s;"), [
+        user_id
+    ])
+    result = cursor.fetchone()
+
+    return result[1] >= result[0] if True else False
+
+
+def get_user_postgresql_usage_in_bytes(user_id: str, cursor: cursor):
+    current_bytes = 0
+
+    cursor.execute(sql.SQL(""""
+    SELECT 
+        pg_column_size(t.*) as row_size 
+    FROM public.user t 
+    WHERE id = %s;
+    """), [user_id])
+
+    current_bytes += cursor.fetchone()[0]
+
+
+    return current_bytes
