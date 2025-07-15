@@ -6,7 +6,7 @@ from src.helpers import get_user_postgresql_usage_in_bytes
 init_postgresql()
 cursor = main_postgresql.cursor()
 
-cursor.execute("""
+cursor.execute(sql.SQL("""
 CREATE TABLE IF NOT EXISTS "user_quota" (
     "user_id" VARCHAR(100) NOT NULL PRIMARY KEY,
     "max_ai_token" INTEGER NOT NULL,
@@ -20,15 +20,11 @@ CREATE TABLE IF NOT EXISTS "user_quota" (
 INSERT INTO "user_quota" ("user_id", "max_ai_token", "ai_token_usage", "max_main_disk_size", "main_disk_usage", "max_vectordb_disk_size", "vectordb_disk_usage")
 VALUES ('user_id', 1000000, 0, 500, 0, 1000, 0);
 
-""")
+SELECT * FROM "user_quota" WHERE user_id = %s;
 
-query = sql.SQL("SELECT max_main_disk_size, main_disk_usage FROM user_quota WHERE  user_id = %s")
-cursor.execute(query, [
-    "user_id"
-])
+"""), ["user_id"])
+
 
 result = cursor.fetchone()
 
-print(result[0])
-
-get_user_postgresql_usage_in_bytes("user_id", cursor)
+print(result)

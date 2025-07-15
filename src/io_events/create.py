@@ -1,17 +1,19 @@
 import logging
 import uuid
 from datetime import datetime
+
 from flask import session, request
 from flask_socketio import SocketIO
+from psycopg2 import sql
 from pydantic import BaseModel
 from pymilvus import DataType
 
 from configuration import conf
 from src.auth import AuthResponse
 from src.db.milvus import milvus_clients, get_milvus_client
-from src.db.postgresql import main_postgresql_cursors, get_main_postgresql_cursor
-from src.helpers.image import save_base64_image
-from src.helpers.socketio_helpers import send_io_client_error
+from src.db.postgresql import get_main_postgresql_cursor
+from src.helpers import send_io_client_error, save_base64_image
+
 
 class CreateFileInput(BaseModel):
     transaction_id: str
@@ -45,10 +47,10 @@ def create_file(socketio: SocketIO):
 
             file_id = uuid.uuid4()
 
-            get_main_postgresql_cursor(session_id, request.sid).execute("""
+            get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                 INSERT INTO File (id, user_id, name, description, total_block_count, added_to_bookmarks, ai_instructions, folder_id, created_at, updated_at)
-                VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
-            """, (
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """), [
                 file_id,
                 auth_info.user.id,
                 input.file_name,
@@ -59,7 +61,7 @@ def create_file(socketio: SocketIO):
                 input.folder_id,
                 datetime.now(),
                 datetime.now(),
-            ))
+            ])
 
             socketio.emit('create_file:success', input.transaction_id, to=session_id)
         except Exception as e:
@@ -98,10 +100,10 @@ def create_folder(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                             INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
-                            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """), [
                     input.id,
                     auth_info.user.id,
                     input.name,
@@ -109,7 +111,7 @@ def create_folder(socketio: SocketIO):
                     input.description,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_folder:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -120,11 +122,13 @@ def create_folder(socketio: SocketIO):
             logging.error(f"UNAUTHORIZED create_folder: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED create_folder", request.sid)
 
+
 class CreateHeadingInput(BaseModel):
     transaction_id: str
     file_id: str
     text: str
     block_count: int
+
 
 def create_heading(socketio: SocketIO):
     @socketio.on('create_heading')
@@ -143,10 +147,10 @@ def create_heading(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                              INSERT INTO Heading (id, user_id, file_id, text, block_count, created_at, updated_at)
-                                VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                            """, (
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                            """), [
                     uuid.uuid4(),
                     session_id,
                     input.file_id,
@@ -154,7 +158,7 @@ def create_heading(socketio: SocketIO):
                     input.block_count,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_heading:success', transaction_id, to=session_id)
             except Exception as e:
@@ -189,10 +193,10 @@ def create_paragraph(socketio: SocketIO):
                 input = CreateParagraphInput(**input)
                 input.model_dump()
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                          INSERT INTO Paragraph (id, user_id, file_id, text, block_count, created_at, updated_at)
-                            VALUES (%%s, %%s,%%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s,%s, %s, %s, %s, %s)
+                        """), [
                     uuid.uuid4(),
                     auth_info.user.id,
                     input.file_id,
@@ -200,7 +204,7 @@ def create_paragraph(socketio: SocketIO):
                     input.block_count,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_paragraph:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -236,10 +240,10 @@ def create_folder(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                             INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
-                            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """), [
                     input.id,
                     auth_info.user.id,
                     input.name,
@@ -247,7 +251,7 @@ def create_folder(socketio: SocketIO):
                     input.description,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_folder:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -283,17 +287,17 @@ def create_file_tag(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                             INSERT INTO FileTag (id, user_id, name, file_id, created_at, updated_at)
-                            VALUES (%%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s, %s, %s, %s, %s)
+                        """), [
                     input.id,
                     auth_info.user.id,
                     input.name,
                     input.file_id,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_file_tag:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -328,10 +332,10 @@ def create_list_block(socketio: SocketIO):
                 input.model_dump()
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                             INSERT INTO ListBlock (id, user_id, file_id, text, block_count, created_at, updated_at)
-                            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """), [
                     input.id,
                     auth_info.user.id,
                     input.file_id,
@@ -339,7 +343,7 @@ def create_list_block(socketio: SocketIO):
                     input.block_count,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_list_block:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -378,10 +382,10 @@ def create_image_block(socketio: SocketIO):
 
                 save_base64_image(input.image, f"{conf.images_folder}/{input.id}")
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                             INSERT INTO ImageBlock (id, user_id, file_id, image_path, small_description, block_count, created_at, updated_at)
-                            VALUES (%%s, %%s, %%s, %%s, %%s, %%s, %%s, %%s)
-                        """, (
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """), [
                     input.id,
                     auth_info.user.id,
                     input.file_id,
@@ -389,7 +393,7 @@ def create_image_block(socketio: SocketIO):
                     input.block_count,
                     datetime.now(),
                     datetime.now(),
-                ))
+                ])
 
                 socketio.emit('create_image_block:success', input.transaction_id, to=session_id)
             except Exception as e:
@@ -464,20 +468,22 @@ def create_rag_collection_group(socketio: SocketIO):
             logging.error(f"UNAUTHORIZED create_rag_collection_group: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection_group", request.sid)
 
+
 def add_rag_collection_to_blocks(socketio: SocketIO):
     class AddRagCollectionToBlockInput(BaseModel):
         transaction_id: str
         collection_name: str
 
-    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str, sio_sid: str):
-        get_main_postgresql_cursor(session_id, sio_sid).execute("""
-            INSERT INTO %%sRagCollection (name, block_id)
-            VALUES (%%s, %%s)
-        """, (
+    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str,
+                     sio_sid: str):
+        get_main_postgresql_cursor(session_id, sio_sid).execute(sql.SQL("""
+            INSERT INTO %sRagCollection (name, block_id)
+            VALUES (%s, %s)
+        """), [
             block_table,
             collection_name,
             block,
-        ))
+        ])
 
         socketio.emit(f'add_rag_collection_{block}:success', transaction_id, to=session_id)
 
@@ -496,7 +502,8 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id, request.sid)
+                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id,
+                             request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -519,7 +526,8 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id, request.sid)
+                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id,
+                             request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
@@ -550,7 +558,6 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             logging.error(f"UNAUTHORIZED add_rag_collection_todo_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_todo_block", request.sid)
 
-
     @socketio.on('add_rag_collection_image_block')
     def run(json):
         try:
@@ -566,7 +573,8 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                add_to_block(transaction_id, "image_block", "ImageBlock", input.collection_name, session_id, request.sid)
+                add_to_block(transaction_id, "image_block", "ImageBlock", input.collection_name, session_id,
+                             request.sid)
             except Exception as e:
                 logging.error(f"Error adding rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)

@@ -1,16 +1,21 @@
 import logging
 import os.path
+
 from flask import session, request
 from flask_socketio import SocketIO
+from psycopg2 import sql
 from pydantic import BaseModel
+
 from src.auth import AuthResponse
 from src.db.milvus import get_milvus_client
 from src.db.postgresql import get_main_postgresql_cursor
-from src.helpers.socketio_helpers import send_io_client_error
+from src.helpers import send_io_client_error
+
 
 class RemoveHeadingBlockInput(BaseModel):
     transaction_id: str
     id: str
+
 
 def remove_heading_block(socketio: SocketIO):
     @socketio.on('remove_heading_block')
@@ -30,12 +35,12 @@ def remove_heading_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM HeadingBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM HeadingBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_heading_block:success', id, to=transaction_id)
             except Exception as e:
@@ -69,12 +74,12 @@ def remove_paragraph_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM ParagraphBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM ParagraphBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_paragraph_block:success', id, to=transaction_id)
             except Exception as e:
@@ -108,12 +113,12 @@ def remove_todo_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM TodoBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM TodoBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_todo_block:success', id, to=transaction_id)
             except Exception as e:
@@ -147,12 +152,12 @@ def remove_code_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM CodeBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM CodeBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_code_block:success', id, to=transaction_id)
             except Exception as e:
@@ -186,12 +191,12 @@ def remove_list_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM ListBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM ListBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_list_block:success', id, to=transaction_id)
             except Exception as e:
@@ -225,24 +230,24 @@ def remove_image_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                image_path = get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    SELECT image_path FROM ImageBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                image_path = get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    SELECT image_path FROM ImageBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
                 image_path_records = get_main_postgresql_cursor(session_id, request.sid).fetchone()
                 logging.info(f"Image path: {image_path}")
 
                 if os.path.exists(image_path_records[0].image_path):
                     os.remove(image_path_records[0].image_path)
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
-                    DELETE FROM ImageBlock WHERE id = %%s AND user_id = %%s
-                """, (
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                    DELETE FROM ImageBlock WHERE id = %s AND user_id = %s
+                """), [
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('remove_image_block:success', id, to=transaction_id)
             except Exception as e:
@@ -261,13 +266,13 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
 
     def remove_from_block(transaction_id: str, block: str, block_table: str, collection_name: str, user_id: str,
                           sio_sid: str, session_id: str):
-        get_main_postgresql_cursor(session_id, sio_sid).execute("""
-            DELETE FROM %%sRagCollection WHERE name = %%s AND block_id = %%s
-        """, (
+        get_main_postgresql_cursor(session_id, sio_sid).execute(sql.SQL("""
+            DELETE FROM %sRagCollection WHERE name = %s AND block_id = %s
+        """), [
             block_table,
             collection_name,
             block,
-        ))
+        ])
 
         get_milvus_client(user_id, sio_sid).drop_collection(collection_name)
 
@@ -290,15 +295,15 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                remove_from_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, user_id, request.sid,
-                                   session_id)
+                remove_from_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, user_id,
+                                  request.sid,
+                                  session_id)
             except Exception as e:
                 logging.error(f"Error removeing rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error removeing rag collection to block: {str(e)}", transaction_id)
         except Exception as e:
             logging.error(f"UNAUTHORIZED remove_rag_collection_heading_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED remove_rag_collection_heading_block", request.sid)
-
 
     @socketio.on('remove_rag_collection_paragraph_block')
     def remove_rag_collection_paragraph_block(input):
@@ -310,15 +315,15 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
             try:
                 transaction_id = input.transaction_id
 
-                remove_from_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, user_id, request.sid,
-                                   session_id)
+                remove_from_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, user_id,
+                                  request.sid,
+                                  session_id)
             except Exception as e:
                 logging.error(f"Error removeing rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error removeing rag collection to block: {str(e)}", transaction_id)
         except Exception as e:
             logging.error(f"UNAUTHORIZED remove_rag_collection_paragraph_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED remove_rag_collection_paragraph_block", request.sid)
-
 
     @socketio.on('remove_rag_collection_list_block')
     def remove_rag_collection_list_block(input):
@@ -330,12 +335,12 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
             try:
                 transaction_id = input.transaction_id
 
-                remove_from_block(transaction_id, "list_block", "ListBlock", input.collection_name, user_id, request.sid,
-                                   session_id)
+                remove_from_block(transaction_id, "list_block", "ListBlock", input.collection_name, user_id,
+                                  request.sid,
+                                  session_id)
             except Exception as e:
                 logging.error(f"Error removeing rag collection to block: {str(e)}")
                 send_io_client_error(socketio, f"Error removeing rag collection to block: {str(e)}", transaction_id)
         except Exception as e:
             logging.error(f"UNAUTHORIZED remove_rag_collection_list_block: {str(e)}")
             send_io_client_error(socketio, f"UNAUTHORIZED remove_rag_collection_list_block", request.sid)
-

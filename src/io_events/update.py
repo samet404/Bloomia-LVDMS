@@ -1,6 +1,7 @@
 import logging
 from flask import session, request
 from flask_socketio import SocketIO
+from psycopg2 import sql
 from pydantic import BaseModel
 from src.auth import AuthResponse
 from src.db.postgresql import main_postgresql_cursors, get_main_postgresql_cursor
@@ -29,13 +30,13 @@ def update_heading_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE HeadingBlock SET text = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """), [
                     input.content,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('update_heading_block:success', id, to=transaction_id)
             except Exception as e:
@@ -67,13 +68,13 @@ def update_paragraph_block(socketio: SocketIO):
                 input.model_dump()
 
                 transaction_id = input.transaction_id
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE ParagraphBlock SET text = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """),  [
                     input.content,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('update_paragraph_block:success', id, to=transaction_id)
             except Exception as e:
@@ -108,13 +109,13 @@ def update_todo_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE TodoBlock SET text = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """), [
                     input.content,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('update_todo_block:success', id, to=transaction_id)
             except Exception as e:
@@ -149,13 +150,13 @@ def update_code_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE CodeBlock SET text = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """), [
                     input.content,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('update_code_block:success', id, to=transaction_id)
             except Exception as e:
@@ -190,13 +191,13 @@ def update_list_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE ListBlock SET text = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """), [
                     input.content,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('update_list_block:success', id, to=transaction_id)
             except Exception as e:
@@ -229,13 +230,13 @@ def swap_block(socketio: SocketIO):
 
                 transaction_id = input.transaction_id
 
-                get_main_postgresql_cursor(session_id, request.sid).execute("""
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
                     UPDATE HeadingBlock SET block_count = %%s WHERE id = %%s AND user_id = %%s
-                """, (
+                """), [
                     input.block_id_1,
                     input.id,
                     auth_info.user.id,
-                ))
+                ])
 
                 socketio.emit('swap_block:success', id, to=transaction_id)
             except Exception as e:
