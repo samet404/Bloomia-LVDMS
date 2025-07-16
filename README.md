@@ -1,4 +1,4 @@
-# Bloomia General AI Server
+# Bloomia General Socket Server
 
 ## What GSS is responsible for?
 
