@@ -1,8 +1,8 @@
 # Bloomia General AI Server
 
-## What GAIS is responsible for?
+## What GSS is responsible for?
 
-GAIS is responsible for updating, adding, deleting managing all user data. It's also responsible for all AI chat system users using. Basically it handless almost 90% of use cases about synchronization and AI logic happens between user and Bloomia servers.
+GSS is responsible for updating, adding, deleting managing all user data. It's also responsible for all AI chat system users using. Basically it handless almost 90% of use cases about file editor management, synchronization and AI logic happens between user and Bloomia servers.
 
 ## Read before diving to source code
 
