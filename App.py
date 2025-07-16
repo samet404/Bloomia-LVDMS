@@ -29,19 +29,15 @@ def create_app():
 app, socketio = create_app()
 
 logger.info('=================================================\n')
-logger.info('WELCOME TO BLOOMIA GAIS (General AI Server)\n')
+logger.info('WELCOME TO BLOOMIA GSS (General Socket Server)\n')
 logger.info('=================================================\n')
 
 logger.info('Checking is milvus is running...')
-try:
-    logger.info('\nConnecting to Main Milvus...')
-    init_milvus_client()
-    logger.info('Looks like Milvus is running...')
+logger.info('\nConnecting to Main Milvus...')
+init_milvus_client()
+logger.info('Looks like Milvus is running...')
 
-    init_postgresql()
-except Exception as e:
-    logger.error(f"Error connecting to Main Milvus: {str(e)}")
-    raise Exception(f"Error connecting to Main Milvus: {str(e)}")
+init_postgresql()
 
 on_connect(socketio)
 on_disconnect(socketio)

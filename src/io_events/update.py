@@ -1,3 +1,4 @@
+import json
 import logging
 from flask import session, request
 from flask_socketio import SocketIO
@@ -5,7 +6,8 @@ from psycopg2 import sql
 from pydantic import BaseModel
 from src.auth import AuthResponse
 from src.db.postgresql import main_postgresql_cursors, get_main_postgresql_cursor
-from src.helpers.socketio_helpers import send_io_client_error
+from src.helpers import send_io_client_error
+
 
 class HeadingBlockUpdateInput(BaseModel):
    transaction_id: str
@@ -14,7 +16,7 @@ class HeadingBlockUpdateInput(BaseModel):
 
 def update_heading_block(socketio: SocketIO):
     @socketio.on('update_heading_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -24,7 +26,7 @@ def update_heading_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = HeadingBlockUpdateInput(**input)
                 input.model_dump()
 
@@ -53,7 +55,7 @@ class ParagraphBlockUpdateInput(BaseModel):
 
 def update_paragraph_block(socketio: SocketIO):
     @socketio.on('update_paragraph_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -63,7 +65,7 @@ def update_paragraph_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = ParagraphBlockUpdateInput(**input)
                 input.model_dump()
 
@@ -93,7 +95,7 @@ class TodoBlockUpdateInput(BaseModel):
 
 def update_todo_block(socketio: SocketIO):
     @socketio.on('update_todo_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -103,7 +105,7 @@ def update_todo_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = TodoBlockUpdateInput(**input)
                 input.model_dump()
 
@@ -133,7 +135,7 @@ class CodeBlockUpdateInput(BaseModel):
 
 def update_code_block(socketio: SocketIO):
     @socketio.on('update_code_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -144,7 +146,7 @@ def update_code_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CodeBlockUpdateInput(**input)
                 input.model_dump()
 
@@ -175,7 +177,7 @@ class ListBlockUpdateInput(BaseModel):
 
 def update_list_block(socketio: SocketIO):
     @socketio.on('update_list_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -185,7 +187,7 @@ def update_list_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = ListBlockUpdateInput(**input)
                 input.model_dump()
 
@@ -214,7 +216,7 @@ class SwapBlockInput(BaseModel):
 
 def swap_block(socketio: SocketIO):
     @socketio.on('swap_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -224,7 +226,7 @@ def swap_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = SwapBlockInput(**input)
                 input.model_dump()
 

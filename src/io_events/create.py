@@ -1,19 +1,17 @@
+import json
 import logging
 import uuid
 from datetime import datetime
-
 from flask import session, request
 from flask_socketio import SocketIO
 from psycopg2 import sql
 from pydantic import BaseModel
 from pymilvus import DataType
-
 from configuration import conf
 from src.auth import AuthResponse
 from src.db.milvus import milvus_clients, get_milvus_client
 from src.db.postgresql import get_main_postgresql_cursor
 from src.helpers import send_io_client_error, save_base64_image
-
 
 class CreateFileInput(BaseModel):
     transaction_id: str
@@ -26,49 +24,46 @@ class CreateFileInput(BaseModel):
 
 def create_file(socketio: SocketIO):
     @socketio.on('create_file')
-    def run(json):
-        session_id = session["auth_session"]
-
-        if session_id is None:
-            raise Exception("AUTH SESSION NOT FOUND")
-
-        transaction_id = None
-
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
                 raise Exception("AUTH SESSION NOT FOUND")
             auth_info: AuthResponse = session["auth_info"]
 
-            input = json.loads(str(json))
-            input = CreateFileInput(**input)
-            input.model_dump()
-            transaction_id = input.transaction_id
+            transaction_id = None
 
-            file_id = uuid.uuid4()
+            try:
+                input = json.loads(str(inputstr))
+                input = CreateFileInput(**input)
+                input.model_dump()
+                transaction_id = input.transaction_id
 
-            get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
-                INSERT INTO File (id, user_id, name, description, total_block_count, added_to_bookmarks, ai_instructions, folder_id, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """), [
-                file_id,
-                auth_info.user.id,
-                input.file_name,
-                input.description,
-                0,
-                0,
-                input.ai_instructions,
-                input.folder_id,
-                datetime.now(),
-                datetime.now(),
-            ])
 
-            socketio.emit('create_file:success', input.transaction_id, to=session_id)
+                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+                            INSERT INTO File (id, user_id, name, description, total_block_count, added_to_bookmarks, ai_instructions, folder_id, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                        """), [
+                    input.id,
+                    auth_info.user.id,
+                    input.file_name,
+                    input.description,
+                    0,
+                    False,
+                    input.ai_instructions,
+                    input.folder_id,
+                    datetime.now().timestamp(),
+                    datetime.now().timestamp(),
+                ])
+
+                socketio.emit('create_file:success', input.transaction_id, to=session_id)
+            except Exception as e:
+                logging.error(f"Error creating file: {str(e)}")
+                socketio.emit('create_file:error', transaction_id, to=session_id)
+                send_io_client_error(socketio, f"Error creating file: {str(e)}", to=session_id)
         except Exception as e:
-            logging.error(f"Error creating file: {str(e)}")
-            socketio.emit('create_file:error', transaction_id, to=session_id)
-            send_io_client_error(socketio, f"Error creating file: {str(e)}")
-
+            logging.error(f"UNAUTHORIZED create_file: {str(e)}")
+            send_io_client_error(socketio, f"UNAUTHORIZED create_file", request.sid)
 
 class CreateFolderInput(BaseModel):
     transaction_id: str
@@ -80,7 +75,7 @@ class CreateFolderInput(BaseModel):
 
 def create_folder(socketio: SocketIO):
     @socketio.on('create_folder')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -94,7 +89,7 @@ def create_folder(socketio: SocketIO):
                     raise Exception("AUTH SESSION NOT FOUND")
                 auth_info: AuthResponse = session["auth_info"]
 
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateFolderInput(**input)
                 input.model_dump()
 
@@ -132,7 +127,7 @@ class CreateHeadingInput(BaseModel):
 
 def create_heading(socketio: SocketIO):
     @socketio.on('create_heading')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -141,7 +136,7 @@ def create_heading(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateHeadingInput(**input)
                 input.model_dump()
 
@@ -179,7 +174,7 @@ class CreateParagraphInput(BaseModel):
 
 def create_paragraph(socketio: SocketIO):
     @socketio.on('create_paragraph')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -189,7 +184,7 @@ def create_paragraph(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateParagraphInput(**input)
                 input.model_dump()
 
@@ -226,7 +221,7 @@ class CreateFolderInput(BaseModel):
 
 def create_folder(socketio: SocketIO):
     @socketio.on('create_folder')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -235,7 +230,7 @@ def create_folder(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateFolderInput(**input)
                 input.model_dump()
                 transaction_id = input.transaction_id
@@ -273,7 +268,7 @@ class CreateFileTagInput(BaseModel):
 
 def create_file_tag(socketio: SocketIO):
     @socketio.on('create_file_tag')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -282,7 +277,7 @@ def create_file_tag(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateFileTagInput(**input)
                 input.model_dump()
                 transaction_id = input.transaction_id
@@ -318,7 +313,7 @@ class CreateListBlockInput(BaseModel):
 
 def create_list_block(socketio: SocketIO):
     @socketio.on('create_list_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -327,7 +322,7 @@ def create_list_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateListBlockInput(**input)
                 input.model_dump()
                 transaction_id = input.transaction_id
@@ -366,7 +361,7 @@ class CreateImageBlockInput(BaseModel):
 
 def create_image_block(socketio: SocketIO):
     @socketio.on('create_image_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -375,7 +370,7 @@ def create_image_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateImageBlockInput(**input)
                 input.model_dump()
                 transaction_id = input.transaction_id
@@ -414,7 +409,7 @@ class CreateCollectionGroupInput(BaseModel):
 
 def create_rag_collection_group(socketio: SocketIO):
     @socketio.on('create_rag_collection_group')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             user_id = session["user_id"]
@@ -425,7 +420,7 @@ def create_rag_collection_group(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = CreateCollectionGroupInput(**input)
                 input.model_dump()
                 transaction_id = input.transaction_id
@@ -488,7 +483,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
         socketio.emit(f'add_rag_collection_{block}:success', transaction_id, to=session_id)
 
     @socketio.on('add_rag_collection_heading_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -496,7 +491,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = AddRagCollectionToBlockInput(**input)
                 input.model_dump()
 
@@ -512,7 +507,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_heading_block", request.sid)
 
     @socketio.on('add_rag_collection_paragraph_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -520,7 +515,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = AddRagCollectionToBlockInput(**input)
                 input.model_dump()
 
@@ -536,7 +531,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_paragraph_block", request.sid)
 
     @socketio.on('add_rag_collection_todo_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -544,7 +539,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = AddRagCollectionToBlockInput(**input)
                 input.model_dump()
 
@@ -559,7 +554,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_todo_block", request.sid)
 
     @socketio.on('add_rag_collection_image_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -567,7 +562,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = AddRagCollectionToBlockInput(**input)
                 input.model_dump()
 
@@ -583,7 +578,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_image_block", request.sid)
 
     @socketio.on('add_rag_collection_list_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -591,7 +586,7 @@ def add_rag_collection_to_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = AddRagCollectionToBlockInput(**input)
                 input.model_dump()
 

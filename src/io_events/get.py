@@ -1,3 +1,4 @@
+import json
 import logging
 
 from flask import session, request
@@ -16,7 +17,7 @@ class GetFilesInput(BaseModel):
 
 def get_files(socketio: SocketIO):
     @socketio.on('get_files')
-    def run(json):
+    def run(input_str):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -25,7 +26,7 @@ def get_files(socketio: SocketIO):
             auth_info: AuthResponse = session["auth_info"]
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(input_str))
                 input = GetFilesInput(**input)
                 input.model_dump()
 
@@ -53,7 +54,7 @@ class GetFoldersInput(BaseModel):
 
 def get_folders(socketio: SocketIO):
     @socketio.on('get_folders')
-    def run(json):
+    def run(input_str):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -62,7 +63,7 @@ def get_folders(socketio: SocketIO):
             auth_info: AuthResponse = session["auth_info"]
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(input_str))
                 input = GetFoldersInput(**input)
                 input.model_dump()
 
@@ -92,7 +93,7 @@ class GetBlockByCountAndFileIdInput(BaseModel):
 
 def get_block_by_count_and_file_id(socketio: SocketIO):
     @socketio.on('get_block_by_count_and_file_id')
-    def run(json):
+    def run(input_str):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -102,7 +103,7 @@ def get_block_by_count_and_file_id(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(input_str))
                 input = GetFilesInput(**input)
                 input.model_dump()
 

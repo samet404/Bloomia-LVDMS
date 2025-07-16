@@ -1,3 +1,4 @@
+import json
 import logging
 import os.path
 
@@ -19,7 +20,7 @@ class RemoveHeadingBlockInput(BaseModel):
 
 def remove_heading_block(socketio: SocketIO):
     @socketio.on('remove_heading_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -29,7 +30,7 @@ def remove_heading_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveHeadingBlockInput(**input)
                 input.model_dump()
 
@@ -58,7 +59,7 @@ class RemoveParagraphBlockInput(BaseModel):
 
 def remove_paragraph_block(socketio: SocketIO):
     @socketio.on('remove_paragraph_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -68,7 +69,7 @@ def remove_paragraph_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveParagraphBlockInput(**input)
                 input.model_dump()
 
@@ -97,7 +98,7 @@ class RemoveTodoBlockInput(BaseModel):
 
 def remove_todo_block(socketio: SocketIO):
     @socketio.on('remove_todo_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -107,7 +108,7 @@ def remove_todo_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveTodoBlockInput(**input)
                 input.model_dump()
 
@@ -136,7 +137,7 @@ class RemoveCodeBlockInput(BaseModel):
 
 def remove_code_block(socketio: SocketIO):
     @socketio.on('remove_code_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -146,7 +147,7 @@ def remove_code_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveCodeBlockInput(**input)
                 input.model_dump()
 
@@ -175,7 +176,7 @@ class RemoveListBlockInput(BaseModel):
 
 def remove_list_block(socketio: SocketIO):
     @socketio.on('remove_list_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -185,7 +186,7 @@ def remove_list_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveListBlockInput(**input)
                 input.model_dump()
 
@@ -214,7 +215,7 @@ class RemoveImageBlockInput(BaseModel):
 
 def remove_image_block(socketio: SocketIO):
     @socketio.on('remove_image_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             if session_id is None:
@@ -224,7 +225,7 @@ def remove_image_block(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveImageBlockInput(**input)
                 input.model_dump()
 
@@ -279,7 +280,7 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
         socketio.emit(f'remove_rag_collection_{block}:success', transaction_id, to=session_id)
 
     @socketio.on('remove_rag_collection_heading_block')
-    def run(json):
+    def run(inputstr):
         try:
             session_id = session["auth_session"]
             user_id = session["user_id"]
@@ -289,7 +290,7 @@ def remove_rag_collection_from_blocks(socketio: SocketIO):
             transaction_id = None
 
             try:
-                input = json.loads(str(json))
+                input = json.loads(str(inputstr))
                 input = RemoveRagCollectionFromBlockInput(**input)
                 input.model_dump()
 

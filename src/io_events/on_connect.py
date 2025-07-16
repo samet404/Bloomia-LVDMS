@@ -3,7 +3,7 @@ from flask import request, session
 from flask_socketio import emit, join_room, SocketIO
 from configuration import conf
 from src.auth import get_auth_session
-from src.db.milvus import create_milvus_client, default_milvus_client
+from src.db.milvus import create_milvus_client, default_milvus_client, get_default_milvus_client
 from src.db.postgresql import set_main_postgresql_cursor
 from src.helpers import send_io_client_error
 
@@ -51,13 +51,13 @@ def on_connect(socketio: SocketIO):
 
 
 def init_milvus_database(user_id: str):
-    existing_databases = default_milvus_client.list_database()
+    existing_databases = get_default_milvus_client().list_databases()
 
     if user_id in existing_databases:
         logging.info(f"Milvus database for user {user_id} already exists")
         return
 
-    default_milvus_client.create_database(
+    get_default_milvus_client().create_database(
         db_name=user_id,
         description=f"Database for user {user_id}",
         properties={

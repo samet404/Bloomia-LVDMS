@@ -10,6 +10,11 @@ default_milvus_client: MilvusClient | None = None
 # This is a dictionary of Milvus clients for each connected user
 milvus_clients: dict[str, MilvusClient] = {}
 
+def get_default_milvus_client() -> MilvusClient:
+    if default_milvus_client is None:
+        raise Exception("Default Milvus client is not initialized. Call init_milvus_client() first.")
+    return default_milvus_client
+
 def close_milvus_clients():
     if default_milvus_client is not None:
         default_milvus_client.close()
