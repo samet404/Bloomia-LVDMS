@@ -5,6 +5,8 @@ WORKDIR /app
 
 COPY . /app
 
+COPY conf.json.prod /app/conf.json
+
 RUN pip install -r requirements.txt
 
 EXPOSE 8260

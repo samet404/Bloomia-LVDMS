@@ -67,11 +67,11 @@ remove_list_block(socketio)
 remove_image_block(socketio)
 remove_rag_collection_from_blocks(socketio)
 
-logger.info('Starting Flask server at http://localhost:' + str(conf.port))
+logger.info(f'Starting Flask server at http://{conf.host}:{conf.port}')
 logger.info('Server started successfully.')
 
 socketio.run(app=app,
-             host='0.0.0.0',
+             host=conf.host,
              port=conf.port,
              debug=False)  # Set to False in production
 

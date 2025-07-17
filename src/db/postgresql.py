@@ -11,14 +11,14 @@ main_postgresql: connection | None = None
 # str is sum of socket.io session_id and user's session_id
 main_postgresql_cursors: dict[str, cursor] = {}
 
-def get_main_postgresql_cursor(session_id: str, sio_session_id) -> cursor:
-    return main_postgresql_cursors[f"{session_id}_{sio_session_id}"]
+def get_main_postgresql_cursor(sio_sid) -> cursor:
+    return main_postgresql_cursors[sio_sid]
 
-def set_main_postgresql_cursor(session_id: str, sio_session_id: str):
-    main_postgresql_cursors[f"{session_id}_{sio_session_id}"] = main_postgresql.cursor()
+def set_main_postgresql_cursor(sio_sid: str):
+    main_postgresql_cursors[sio_sid] = main_postgresql.cursor()
 
-def remove_main_postgresql_cursor(session_id: str, sio_session_id: str):
-    del main_postgresql_cursors[f"{session_id}_{sio_session_id}"]
+def remove_main_postgresql_cursor(sio_sid):
+    del main_postgresql_cursors[sio_sid]
 
 def init_postgresql():
     global main_postgresql

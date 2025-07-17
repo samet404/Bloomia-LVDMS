@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 class Configuration(BaseModel):
     port: int = 3434
+    host: str
     milvus_uri: str
     allowed_origins: str
     postgres_host: str

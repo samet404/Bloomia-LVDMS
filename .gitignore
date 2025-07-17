@@ -2,6 +2,7 @@
 .idea
 __pycache__
 conf.json
+conf.json.prod
 logs/*
 logs
 .venv

@@ -5,7 +5,8 @@ from configuration import conf
 from src.auth import get_auth_session
 from src.db.milvus import create_milvus_client, default_milvus_client, get_default_milvus_client
 from src.db.postgresql import set_main_postgresql_cursor
-from src.helpers import send_io_client_error
+from src.helpers import event_err_server
+
 
 def on_connect(socketio: SocketIO):
     @socketio.on('connect')
@@ -32,22 +33,19 @@ def on_connect(socketio: SocketIO):
 
             logging.debug(f"sid: {request.sid} | auth_session_id: {auth_session.session.id} || auth_session_info: {auth_session.model_dump_json(indent=4)}")
 
-            session["auth_info"] = auth_session
-            session["auth_session"] = auth_session.session.id
+            session["auth_session"] = auth_session
             session["user_id"] = auth_session.user.id
 
-            set_main_postgresql_cursor(session["auth_session"], request.sid)
+            set_main_postgresql_cursor(session[""], request.sid)
 
             init_milvus_database(session["user_id"])
             create_milvus_client(session["user_id"], request.sid)
 
+            join_room(session["user_id"])
             emit('connect-success')
-            session["authorized"] = True
-            join_room(session["auth_session"])
         except Exception as e:
-            logging.error(f"User could not connect to server: {str(e)}")
+            event_err_server("User could not connect to server")
             emit('connect-error', to=request.sid)
-            send_io_client_error(socketio, f"Could not connect to server.", request.sid)
 
 
 def init_milvus_database(user_id: str):

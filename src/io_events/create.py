@@ -1,534 +1,442 @@
 import json
 import logging
-import uuid
 from datetime import datetime
+
 from flask import session, request
 from flask_socketio import SocketIO
 from psycopg2 import sql
 from pydantic import BaseModel
 from pymilvus import DataType
-from configuration import conf
-from src.auth import AuthResponse
-from src.db.milvus import milvus_clients, get_milvus_client
-from src.db.postgresql import get_main_postgresql_cursor
-from src.helpers import send_io_client_error, save_base64_image
 
-class CreateFileInput(BaseModel):
-    transaction_id: str
-    id: str
-    file_name: str
-    description: str
-    folder_id: str | None
-    ai_instructions: str
+from configuration import conf
+from src.db.milvus import get_milvus_client
+from src.db.postgresql import get_main_postgresql_cursor
+from src.helpers import save_base64_image, ErrorResponse, event_err_client, event_loading_client, LoadingResponse, \
+    event_success_client, SuccessResponse, event_err_server, safe_parse_event_input, \
+    send_auth_err_if_one_of_is_none
 
 
 def create_file(socketio: SocketIO):
-    @socketio.on('create_file')
+    class CreateFileInput(BaseModel):
+        transaction_id: str
+        id: str
+        file_name: str
+        description: str
+        folder_id: str | None
+        ai_instructions: str
+
+    event_name = 'create_file'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateFileInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
 
-            transaction_id = None
-
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateFileInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+            get_main_postgresql_cursor(user_id, request.sid).execute(sql.SQL("""
                             INSERT INTO File (id, user_id, name, description, total_block_count, added_to_bookmarks, ai_instructions, folder_id, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.file_name,
-                    input.description,
-                    0,
-                    False,
-                    input.ai_instructions,
-                    input.folder_id,
-                    datetime.now().timestamp(),
-                    datetime.now().timestamp(),
-                ])
+                input.id,
+                input.file_name,
+                input.description,
+                0,
+                False,
+                input.ai_instructions,
+                input.folder_id,
+                datetime.now().timestamp(),
+                datetime.now().timestamp(),
+            ])
 
-                socketio.emit('create_file:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                logging.error(f"Error creating file: {str(e)}")
-                socketio.emit('create_file:error', transaction_id, to=session_id)
-                send_io_client_error(socketio, f"Error creating file: {str(e)}", to=session_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_file: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_file", request.sid)
-
-class CreateFolderInput(BaseModel):
-    transaction_id: str
-    id: str
-    name: str
-    description: str
-    sub_folder_id: str
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def create_folder(socketio: SocketIO):
-    @socketio.on('create_folder')
+    class CreateFolderInput(BaseModel):
+        transaction_id: str
+        id: str
+        name: str
+        description: str
+        sub_folder_id: str
+
+    event_name = 'create_folder'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateFolderInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-
-            transaction_id = None
-
-            try:
-                session_id = session["auth_session"]
-                if session_id is None:
-                    raise Exception("AUTH SESSION NOT FOUND")
-                auth_info: AuthResponse = session["auth_info"]
-
-                input = json.loads(str(inputstr))
-                input = CreateFolderInput(**input)
-                input.model_dump()
-
-                transaction_id = input.transaction_id
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
                             INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.name,
-                    input.sub_folder_id,
-                    input.description,
-                    datetime.now(),
-                    datetime.now(),
-                ])
-
-                socketio.emit('create_folder:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_folder:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file: {str(e)}", session_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_folder: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_folder", request.sid)
-
-
-class CreateHeadingInput(BaseModel):
-    transaction_id: str
-    file_id: str
-    text: str
-    block_count: int
+                input.id,
+                user_id,
+                input.name,
+                input.sub_folder_id,
+                input.description,
+                datetime.now(),
+                datetime.now(),
+            ])
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id, ErrorResponse(code="INTERNAL"))
 
 
 def create_heading(socketio: SocketIO):
-    @socketio.on('create_heading')
+    class CreateHeadingInput(BaseModel):
+        transaction_id: str
+        id: str
+        file_id: str
+        text: str
+        block_count: int
+
+    event_name = 'create_heading'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateHeadingInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
+                         INSERT INTO Heading (id, user_id, file_id, text, block_count, created_at, updated_at)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """), [
+                input.id,
+                user_id,
+                input.file_id,
+                input.text,
+                input.block_count,
+                datetime.now(),
+                datetime.now(),
+            ])
 
-            transaction_id = None
-
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateHeadingInput(**input)
-                input.model_dump()
-
-                transaction_id = input.transaction_id
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
-                             INSERT INTO Heading (id, user_id, file_id, text, block_count, created_at, updated_at)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                            """), [
-                    uuid.uuid4(),
-                    session_id,
-                    input.file_id,
-                    input.text,
-                    input.block_count,
-                    datetime.now(),
-                    datetime.now(),
-                ])
-
-                socketio.emit('create_heading:success', transaction_id, to=session_id)
-            except Exception as e:
-                logging.error(f"Error creating collection: {str(e)}")
-                socketio.emit('create_heading:error', transaction_id, to=session_id)
-                send_io_client_error(socketio, f"Error creating collection: {str(e)}")
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_heading: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_heading", request.sid)
-
-
-class CreateParagraphInput(BaseModel):
-    transaction_id: str
-    file_id: str
-    text: str
-    block_count: int
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id, ErrorResponse(code="INTERNAL"))
 
 
 def create_paragraph(socketio: SocketIO):
-    @socketio.on('create_paragraph')
+    class CreateParagraphInput(BaseModel):
+        transaction_id: str
+        id: str
+        file_id: str
+        text: str
+        block_count: int
+
+    event_name = 'create_paragraph'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateParagraphInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
 
-            transaction_id = None
+            date = datetime.now().timestamp()
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
+                     INSERT INTO Paragraph (id, user_id, file_id, text, block_count, created_at, updated_at)
+                     VALUES (%s, %s,%s, %s, %s, %s, %s)
+                    """), [
+                input.id,
+                user_id,
+                input.file_id,
+                input.text,
+                input.block_count,
+                date,
+                date,
+            ])
 
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateParagraphInput(**input)
-                input.model_dump()
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
-                         INSERT INTO Paragraph (id, user_id, file_id, text, block_count, created_at, updated_at)
-                            VALUES (%s, %s,%s, %s, %s, %s, %s)
-                        """), [
-                    uuid.uuid4(),
-                    auth_info.user.id,
-                    input.file_id,
-                    input.text,
-                    input.block_count,
-                    datetime.now(),
-                    datetime.now(),
-                ])
-
-                socketio.emit('create_paragraph:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                logging.error(f"Error creating collection: {str(e)}")
-                socketio.emit('create_paragraph:error', transaction_id, to=session_id)
-                send_io_client_error(socketio, f"Error creating collection: {str(e)}", session_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_paragraph: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_paragraph", request.sid)
-
-
-class CreateFolderInput(BaseModel):
-    transaction_id: str
-    id: str
-    name: str
-    description: str
-    sub_folder_id: str
-
-
-def create_folder(socketio: SocketIO):
-    @socketio.on('create_folder')
-    def run(inputstr):
-        try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateFolderInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
-                            INSERT INTO FOLDER (id, user_id, name, description, sub_folder_id, created_at, updated_at)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s)
-                        """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.name,
-                    input.sub_folder_id,
-                    input.description,
-                    datetime.now(),
-                    datetime.now(),
-                ])
-
-                socketio.emit('create_folder:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_folder:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", session_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_folder: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_folder", request.sid)
-
-
-class CreateFileTagInput(BaseModel):
-    transaction_id: str
-    id: str
-    name: str
-    file_id: str
-    block_count: int
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def create_file_tag(socketio: SocketIO):
-    @socketio.on('create_file_tag')
+    class CreateFileTagInput(BaseModel):
+        transaction_id: str
+        id: str
+        name: str
+        file_id: str
+        block_count: int
+
+    event_name = 'create_file_tag'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateFileTagInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
-
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateFileTagInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
                             INSERT INTO FileTag (id, user_id, name, file_id, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s)
                         """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.name,
-                    input.file_id,
-                    datetime.now(),
-                    datetime.now(),
-                ])
+                input.id,
+                user_id,
+                input.name,
+                input.file_id,
+                datetime.now(),
+                datetime.now(),
+            ])
 
-                socketio.emit('create_file_tag:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_file_tag:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
         except Exception as e:
-            logging.error(f"UNAUTHORIZED create_file_tag: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_file_tag", request.sid)
-
-
-class CreateListBlockInput(BaseModel):
-    transaction_id: str
-    id: str
-    name: str
-    file_id: str
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def create_list_block(socketio: SocketIO):
-    @socketio.on('create_list_block')
+    class CreateListBlockInput(BaseModel):
+        transaction_id: str
+        id: str
+        name: str
+        file_id: str
+
+    event_name = 'create_list_block'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateListBlockInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
 
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateListBlockInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
                             INSERT INTO ListBlock (id, user_id, file_id, text, block_count, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s, %s)
                         """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.file_id,
-                    "",
-                    input.block_count,
-                    datetime.now(),
-                    datetime.now(),
-                ])
+                input.id,
+                user_id,
+                input.file_id,
+                "",
+                input.block_count,
+                datetime.now(),
+                datetime.now(),
+            ])
 
-                socketio.emit('create_list_block:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_list_block:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_list_block: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_list_block", request.sid)
-
-
-class CreateImageBlockInput(BaseModel):
-    transaction_id: str
-    id: str
-    small_description: str
-    file_id: str
-    block_count: int
-    image: str
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def create_image_block(socketio: SocketIO):
-    @socketio.on('create_image_block')
+    class CreateImageBlockInput(BaseModel):
+        transaction_id: str
+        id: str
+        small_description: str
+        file_id: str
+        block_count: int
+        image: str
+
+    event_name = 'create_image_block'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateImageBlockInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            auth_info: AuthResponse = session["auth_info"]
-            transaction_id = None
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
 
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateImageBlockInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
-
-                save_base64_image(input.image, f"{conf.images_folder}/{input.id}")
-
-                get_main_postgresql_cursor(session_id, request.sid).execute(sql.SQL("""
+            save_base64_image(input.image, f"{conf.images_folder}/{input.id}")
+            get_main_postgresql_cursor(request.sid).execute(sql.SQL("""
                             INSERT INTO ImageBlock (id, user_id, file_id, image_path, small_description, block_count, created_at, updated_at)
                             VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """), [
-                    input.id,
-                    auth_info.user.id,
-                    input.file_id,
-                    input.small_description,
-                    input.block_count,
-                    datetime.now(),
-                    datetime.now(),
-                ])
+                input.id,
+                user_id,
+                input.file_id,
+                input.small_description,
+                input.block_count,
+                datetime.now(),
+                datetime.now(),
+            ])
 
-                socketio.emit('create_image_block:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_image_block:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_image_block: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_image_block", request.sid)
-
-
-class CreateCollectionGroupInput(BaseModel):
-    transaction_id: str
-    id: str
-    name: str
-    description: str
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def create_rag_collection_group(socketio: SocketIO):
-    @socketio.on('create_rag_collection_group')
+    class CreateCollectionGroupInput(BaseModel):
+        transaction_id: str
+        id: str
+        name: str
+        description: str
+
+    event_name = 'create_rag_collection_group'
+
+    @socketio.on(event_name)
     def run(inputstr):
+        user_id = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name, CreateCollectionGroupInput, inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            user_id = session["user_id"]
+            event_loading_client(socketio, event_name, user_id, LoadingResponse(transaction_id=input.transaction_id))
 
-            if session_id is None or user_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
+            schema = get_milvus_client(user_id, request.sid).create_schema(
+                auto_id=False,
+                enable_dynamic_field=True,
+            )
 
-            transaction_id = None
+            schema.add_field(
+                name="id",
+                dtype=DataType.VARCHAR,
+                is_primary=True
+            )
 
-            try:
-                input = json.loads(str(inputstr))
-                input = CreateCollectionGroupInput(**input)
-                input.model_dump()
-                transaction_id = input.transaction_id
+            schema.add_field(
+                name="id",
+                dtype=DataType.VARCHAR,
+                is_primary=True
+            )
 
-                schema = get_milvus_client(user_id, request.sid).create_schema(
-                    auto_id=False,
-                    enable_dynamic_field=True,
-                )
+            schema.add_field(
+                field_name="vector",
+                datatype=DataType.FLOAT_VECTOR,
+                dim=1024,
+                metric_type="IP",
+            )
 
-                schema.add_field(
-                    name="id",
-                    dtype=DataType.VARCHAR,
-                    is_primary=True
-                )
+            get_milvus_client(request.sid, user_id).create_collection(
+                collection_name=input.name,
+                schema=schema,
+            )
 
-                schema.add_field(
-                    name="id",
-                    dtype=DataType.VARCHAR,
-                    is_primary=True
-                )
-
-                schema.add_field(
-                    field_name="vector",
-                    datatype=DataType.FLOAT_VECTOR,
-                    dim=1024,
-                    metric_type="IP",
-                )
-
-                milvus_clients[user_id].create_collection(
-                    collection_name=input.name,
-                    schema=schema,
-                )
-
-                socketio.emit('create_rag_collection_group:success', input.transaction_id, to=session_id)
-            except Exception as e:
-                socketio.emit('create_rag_collection_group:error', transaction_id, to=session_id)
-                logging.error(f"Error creating file: {str(e)}")
-                send_io_client_error(socketio, f"Error creating file", request.sid)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED create_rag_collection_group: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED create_rag_collection_group", request.sid)
+            event_success_client(socketio, event_name, user_id, SuccessResponse(transaction_id=input.transaction_id))
+        except Exception:
+            event_err_server(event_name)
+            event_err_client(socketio, event_name, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
 
 def add_rag_collection_to_blocks(socketio: SocketIO):
     class AddRagCollectionToBlockInput(BaseModel):
         transaction_id: str
+        id: str
         collection_name: str
 
-    def add_to_block(transaction_id: str, block: str, block_table: str, collection_name: str, session_id: str,
-                     sio_sid: str):
-        get_main_postgresql_cursor(session_id, sio_sid).execute(sql.SQL("""
-            INSERT INTO %sRagCollection (name, block_id)
+    def add_to_block(event_name: str, transaction_id: str, sql_rag_block_table_name: str, collection_name: str,
+                     block_id: str,
+                     user_id: str, sio_sid: str):
+        event_loading_client(socketio, event_name, user_id,
+                             LoadingResponse(transaction_id=transaction_id))
+
+        get_main_postgresql_cursor(sio_sid).execute(sql.SQL("""
+            INSERT INTO {table} (name, block_id)
             VALUES (%s, %s)
-        """), [
-            block_table,
+        """).format(table=sql.Identifier(sql_rag_block_table_name)), [
             collection_name,
-            block,
+            block_id,
         ])
 
-        socketio.emit(f'add_rag_collection_{block}:success', transaction_id, to=session_id)
+        event_success_client(socketio, event_name, user_id,
+                             SuccessResponse(transaction_id=transaction_id))
 
-    @socketio.on('add_rag_collection_heading_block')
+    event_name_heading = 'add_rag_collection_heading_block'
+
+    @socketio.on(event_name_heading)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name_heading, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name_heading, AddRagCollectionToBlockInput,
+                                       inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            transaction_id = None
+            add_to_block(event_name_heading, input.transaction_id, "HeadingBlockRagCollection",
+                         input.collection_name, input.id, user_id, request.sid)
+        except Exception:
+            event_err_server(event_name_heading)
+            event_err_client(socketio, event_name_heading, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
-            try:
-                input = json.loads(str(inputstr))
-                input = AddRagCollectionToBlockInput(**input)
-                input.model_dump()
-
-                transaction_id = input.transaction_id
-
-                add_to_block(transaction_id, "heading_block", "HeadingBlock", input.collection_name, session_id,
-                             request.sid)
-            except Exception as e:
-                logging.error(f"Error adding rag collection to block: {str(e)}")
-                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED add_rag_collection_heading_block: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_heading_block", request.sid)
-
-    @socketio.on('add_rag_collection_paragraph_block')
+    event_name_paragraph = 'add_rag_collection_paragraph_block'
+    @socketio.on(event_name_paragraph)
     def run(inputstr):
+        user_id: str = session.get("user_id", None)
+        if send_auth_err_if_one_of_is_none(socketio, request.sid, event_name_heading, user_id):
+            return
+
+        input = safe_parse_event_input(socketio, request.sid, event_name_heading, AddRagCollectionToBlockInput,
+                                       inputstr)
+        if input is None:
+            return
+
         try:
-            session_id = session["auth_session"]
-            if session_id is None:
-                raise Exception("AUTH SESSION NOT FOUND")
-            transaction_id = None
+            add_to_block(event_name_heading, input.transaction_id, "ParagraphBlockRagCollection",
+                         input.collection_name, input.id, user_id, request.sid)
 
-            try:
-                input = json.loads(str(inputstr))
-                input = AddRagCollectionToBlockInput(**input)
-                input.model_dump()
-
-                transaction_id = input.transaction_id
-
-                add_to_block(transaction_id, "paragraph_block", "ParagraphBlock", input.collection_name, session_id,
-                             request.sid)
-            except Exception as e:
-                logging.error(f"Error adding rag collection to block: {str(e)}")
-                send_io_client_error(socketio, f"Error adding rag collection to block: {str(e)}", transaction_id)
-        except Exception as e:
-            logging.error(f"UNAUTHORIZED add_rag_collection_paragraph_block: {str(e)}")
-            send_io_client_error(socketio, f"UNAUTHORIZED add_rag_collection_paragraph_block", request.sid)
+        except Exception:
+            event_err_server(event_name_heading)
+            event_err_client(socketio, event_name_heading, user_id,
+                             ErrorResponse(code="INTERNAL", transaction_id=input.transaction_id))
 
     @socketio.on('add_rag_collection_todo_block')
     def run(inputstr):

@@ -1,17 +1,104 @@
 # ====== Helper functions for tasks related to server logic itself rather than utility
 
 import base64
+import json
+import logging
 from enum import Enum
 from io import BytesIO
 from textwrap import dedent
+from typing import TypeVar
 from PIL import Image
 from flask_socketio import SocketIO
 from psycopg2 import sql
 from psycopg2.extensions import cursor
+from pydantic import BaseModel
+from src.utils import detailed_exception_info
 
-def send_io_client_error(socketio: SocketIO, error: str, to: str):
-    socketio.emit('error', error, to=to)
+T = TypeVar('T')
 
+def send_auth_err_if_one_of_is_none(sio: SocketIO, sio_id: str, event_name: str, *args):
+    """
+    Logs auth error response, returns True if any of the arguments is None.
+    This is used to check if the user is authorized for an event.
+    """
+    if any(arg is None for arg in args):
+        event_err_server(f"{event_name} unauthorized error")
+        event_err_client(sio, event_name, sio_id, ErrorResponse(code="UNAUTHORIZED"))
+        return True
+    return False
+
+def safe_parse_pydantic_model(model_class, data):
+    """
+    Safely parses data into a Pydantic model, returning None if parsing fails.
+    """
+    try:
+        return model_class(**data)
+    except Exception:
+        return None
+
+def safe_parse_event_input(sio: SocketIO, sio_id: str, event_name: str, model_class: T, input: any) -> T | None:
+    """
+    Safely parses data into a Pydantic model, returning None and logging an error if parsing fails.
+    """
+    try:
+        json_data = json.loads(str(input))
+        return model_class(json_data)
+    except Exception:
+        event_err_server(f"{event_name} input parsing error")
+        event_err_client(sio, event_name, sio_id, ErrorResponse(code="INVALID_INPUT"))
+
+        return None
+
+def unauthorized_err_server(event_name: str, session_id: str):
+    """
+    Logs an unauthorized error for a specific event.
+    """
+    logging.error(f"{session_id} UNAUTHORIZED: {event_name}")
+
+def event_err_server(extra: str):
+    logging.error(detailed_exception_info(extra))
+
+class ServerErrorResponse(BaseModel):
+    transaction_id: str | None = None
+    code: str
+    message: str
+
+class ErrorResponse(BaseModel):
+    code: str
+    transaction_id: str | None = None
+
+def convert_server_err_to_client_err(server_error: ServerErrorResponse) -> ErrorResponse:
+    """
+    Converts a server error response to a client error response.
+    """
+    return ErrorResponse(
+        code=server_error.code,
+        transaction_id=server_error.transaction_id
+    )
+
+def event_err_client(socketio: SocketIO, event: str, session_id: str, response: ErrorResponse):
+    """
+    Sends an error response to the client.
+    """
+    socketio.emit(f"{event}:error", response.model_dump_json(), to=session_id)
+
+class LoadingResponse(BaseModel):
+    transaction_id: str | None = None
+
+def event_loading_client(socketio: SocketIO, event: str, session_id: str, loading_response: LoadingResponse):
+    """
+    Sends a loading response to the client.
+    """
+    socketio.emit(f"{event}:loading", loading_response.model_dump_json(), to=session_id)
+
+class SuccessResponse(BaseModel):
+    transaction_id: str | None = None
+
+def event_success_client(socketio: SocketIO, event: str, session_id: str, success_response: SuccessResponse):
+    """
+    Sends a success response to the client.
+    """
+    socketio.emit(f"{event}:success", success_response.model_dump_json(), to=session_id)
 
 class Persona(Enum):
     HAPPY = "happy"
@@ -23,7 +110,6 @@ class Persona(Enum):
     FEMININE = "feminine"
     MASCULINE = "masculine"
     NEUTRAL = "neutral"
-
 
 def get_fix_grammar_prompt(text: str):
     return dedent(
