@@ -1,9 +1,7 @@
-# Bloomia General Socket Server
+# What is GSS and why is it deprecated?
 
-## What GSS is responsible for?
+GSS stands for General Socket Server. This server was responsible for updating, adding, deleting, and managing all user data in my Bloomia app (which is a private project). Basically, it's meant to handle most of the server-side work for my app.
 
-GSS is responsible for updating, adding, deleting managing all user data. It's also responsible for all AI chat system users using. Basically it handless almost 90% of use cases about file editor management, synchronization and AI logic happens between user and Bloomia servers.
+When I was trying to figure out how I could use Python as my socket server, I first started exploring how to implement Socket.io in Python as a backend server, then I found flask-socketio. In the first few days, it was good, but then other things came into play like authentication, asynchronous tasks, workers, and Gunicorn. Then I realized that Python is not good for backend development. It's a shitty language just for basic educations, mathematicians, AI engineers, and writing small scripts.
 
-## Read before diving to source code
-
-- Almost every socket.io handler takes a "transactionId" as an input. This transactionId is coming from client and when transaction - or event - is successful, server sends an success message with its "transactionId". This allows client to see what changes are successful and how much time took since last transaction changes to be applied.
+I'm planning to rewrite and fix all of my code in Node.js. Python was never meant to be a web language, and the community doesn't want that either. There aren't many people in the Python community who want to make scalable backend services.
